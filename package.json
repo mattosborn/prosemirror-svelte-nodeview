@@ -1,0 +1,55 @@
+{
+  "name": "prosemirror-svelte-nodeview",
+  "author": "Matt Osborn <mattjosborn@gmail.com>",
+  "version": "0.0.0-development",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "keywords": [
+    "svelte",
+    "typescript",
+    "prosemirror",
+    "nodeview"
+  ],
+  "scripts": {
+    "build": "tsup --dts",
+    "build:fast": "tsup",
+    "dev": "yarn build && nodemon --watch src -e ts --exec 'npm run build:fast'",
+    "prepublishOnly": "yarn build",
+    "semantic-release": "semantic-release"
+  },
+  "devDependencies": {
+    "@types/prosemirror-model": "^1.16.2",
+    "@types/prosemirror-state": "^1.3.0",
+    "@types/prosemirror-view": "^1.23.3",
+    "@typescript-eslint/eslint-plugin": "^5.23.0",
+    "@typescript-eslint/parser": "^5.23.0",
+    "eslint": "^8.15.0",
+    "nodemon": "^2.0.16",
+    "svelte": "^3.48.0",
+    "tsup": "^5.12.7",
+    "typescript": "^4.6.4",
+    "semantic-release": "^19.0.2"
+  },
+  "dependencies": {
+    "prosemirror-state": "^1.3.4"
+  },
+  "release": {
+    "branches": [ "main" ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mattosborn/prosemirror-svelte-nodeview.git"
+  }
+}
