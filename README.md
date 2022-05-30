@@ -51,3 +51,7 @@ export interface SvelteNodeViewControls {
   update: (cb: (editorState: EditorState, node?: Node, getPos?: () => number) => Transaction) => void;
 }
 ```
+
+## Examples
+
+Check out the [basic example project](/examples/basic) for a more complete [example component](/examples/basic/src/nodeviews/HeadingView.svelte) showing the use of a nested editor to edit attributes.
