@@ -2,18 +2,27 @@ import type { Node } from "prosemirror-model";
 import type { NodeView, EditorView } from "prosemirror-view";
 import type { SvelteComponent } from "svelte";
 import type { EditorState, Transaction } from "prosemirror-state";
+import { compareDeep } from "./compareDeep";
+import clone from "clone";
 
-function supressMissingPropWarnings(props: { [key: string]: unknown }, fn: () => void) {
-  const re = new RegExp(`was created with unknown prop '(${Object.keys(props).join('|')})'`);
+function supressMissingPropWarnings(
+  props: { [key: string]: unknown },
+  fn: () => void
+) {
+  const re = new RegExp(
+    `was created with unknown prop '(${Object.keys(props).join("|")})'`
+  );
   const _warn = console.warn;
   console.warn = (message?: unknown, ...optionalParams: unknown[]) =>
-    !(typeof message === 'string' && re.test(message))
-    &&  _warn(message, ...optionalParams);
+    !(typeof message === "string" && re.test(message)) &&
+    _warn(message, ...optionalParams);
   fn();
   console.warn = _warn;
 }
 
-interface IComponentOptions<Props extends Record<string, unknown> = Record<string, unknown>> {
+interface IComponentOptions<
+  Props extends Record<string, unknown> = Record<string, unknown>
+> {
   target: Element | ShadowRoot;
   anchor?: Element;
   props?: Props;
@@ -25,93 +34,116 @@ interface IComponentOptions<Props extends Record<string, unknown> = Record<strin
 
 export interface SvelteNodeViewControls {
   delete: () => void;
-  update: (cb: (editorState: EditorState, node?: Node, getPos?: () => number) => Transaction) => void;
+  update: (
+    cb: (
+      editorState: EditorState,
+      node?: Node,
+      getPos?: () => number
+    ) => Transaction
+  ) => void;
 }
 
 type Attrs = Record<string, unknown>;
 
 type ComponentProps = {
   attrs?: Attrs;
-  controls?: SvelteNodeViewControls,
-  contentDOM?: (node: HTMLElement) => void,
-  rootDOM?: (node: HTMLElement) => void,
-}
+  controls?: SvelteNodeViewControls;
+  contentDOM?: (node: HTMLElement) => void;
+  rootDOM?: (node: HTMLElement) => void;
+};
 
-export type SvelteComponentConstructor = new (options: IComponentOptions<ComponentProps>) => SvelteComponent;
+export type SvelteComponentConstructor = new (
+  options: IComponentOptions<ComponentProps>
+) => SvelteComponent;
 
 type Options = {
   name: string;
-}
+};
 
-export function createSvelteNodeView(constructor: SvelteComponentConstructor, options: Options) {
+export function createSvelteNodeView(
+  constructor: SvelteComponentConstructor,
+  options: Options
+) {
   return (node: Node, view: EditorView, getPos: () => number): NodeView =>
     new SvelteNodeView(constructor, options, node, view, getPos);
 }
 
 export default class SvelteNodeView implements NodeView {
-
   dom: HTMLElement;
   contentDOM: HTMLElement;
   component: SvelteComponent;
-  view: EditorView;
-  node: Node;
   innerContent: string;
   isComponentUpdating: boolean;
-  getPos: () => number;
   unbind: () => void;
 
-  constructor(constructor: SvelteComponentConstructor, options: Options, node: Node, view: EditorView, getPos: () => number) {
+  constructor(
+    constructor: SvelteComponentConstructor,
+    options: Options,
+    private node: Node,
+    private view: EditorView,
+    private getPos: () => number
+  ) {
     this.node = node;
     this.view = view;
     this.getPos = getPos;
 
-    const target = document.createElement('div');
+    const target = document.createElement("div");
 
     const props = {
-      attrs: node.attrs,
-      contentDOM:  (node: HTMLElement) => this.contentDOM = node,
-      rootDOM: (node: HTMLElement) => this.dom = node,
+      attrs: clone(node.attrs),
+      contentDOM: (node: HTMLElement) => (this.contentDOM = node),
+      rootDOM: (node: HTMLElement) => (this.dom = node),
       view,
       controls: {
         delete: () => this.deleteNode(),
         update: (cb) => {
           const tr = cb(this.view.state, node, getPos);
           this.view.dispatch(tr);
-        }
-      }
+        },
+      },
     };
 
     supressMissingPropWarnings(props, () => {
       this.component = new constructor({ target, props });
     });
 
-    this.component.$$.before_update.push(() => this.isComponentUpdating = true);
+    this.component.$$.before_update.push(
+      () => (this.isComponentUpdating = true)
+    );
     this.component.$$.after_update.push(() => {
-      window.setTimeout(() => this.isComponentUpdating = false);
+      window.setTimeout(() => (this.isComponentUpdating = false));
     });
 
     this.dom = this.dom ?? target;
 
-    this.dom.classList.add('svelte-node-view');
+    this.dom.classList.add("svelte-node-view");
     this.dom.classList.add(`svelte-node-view--${options.name}`);
 
     const bindCallback = (attrs: Attrs) => {
-      this.node.attrs = attrs;
-      const transaction = view.state.tr.setNodeMarkup(getPos(), null, attrs);
-      view.dispatch(transaction);
+      if (!compareDeep(attrs, this.node.attrs)) {
+        // only dispatch to prosemirror if attrs have changed
+        // or else we get an infinite loop
+        this.view.dispatch(
+          this.view.state.tr.setNodeMarkup(getPos(), null, attrs)
+        );
+      }
     };
 
-    const index = this.component.$$.props['attrs'];
+    const index = this.component.$$.props["attrs"];
     this.component.$$.bound[index] = bindCallback;
   }
 
   deleteNode() {
-    const transaction = this.view.state.tr.delete(this.getPos(), this.getPos() + 1);
+    const transaction = this.view.state.tr.delete(
+      this.getPos(),
+      this.getPos() + 1
+    );
     this.view.dispatch(transaction);
   }
 
-  ignoreMutation: NodeView['ignoreMutation'] = m =>  {
-    if (m.type === 'attributes') return true;
+  ignoreMutation: NodeView["ignoreMutation"] = (m) => {
+    // component should handle attribute mutations
+    if (m.type === "attributes") return true;
 
     // ignore the mutation if the component is updating
     // as these will (hopefully) be svelte
@@ -119,12 +151,21 @@ export default class SvelteNodeView implements NodeView {
 
     // ignore all mutations that happen within contenteditable=false nodes
     // as these can't come from user input are also (hopefully) svelte
-    const mutationIsInCeFalse = Array
-    .from(this.dom.querySelectorAll('[contenteditable=false]'))
-    .find(e => m.target == e || e.contains(m.target));
+    const mutationIsInCeFalse = Array.from(
+      this.dom.querySelectorAll("[contenteditable=false]")
+    ).find((e) => m.target == e || e.contains(m.target));
     if (mutationIsInCeFalse) return true;
 
     // let prosemirror handle the rest, including mutations outside of the contentDOM.
+    return false;
+  };
+
+  update(node: Node) {
+    if (node.type === this.node.type) {
+      this.component.$set({ attrs: clone(node.attrs) });
+      this.node = node;
+      return true;
+    }
     return false;
   }
 
@@ -134,5 +175,4 @@ export default class SvelteNodeView implements NodeView {
     }
     return true;
   }
-
 }

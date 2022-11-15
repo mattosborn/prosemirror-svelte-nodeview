@@ -25,28 +25,31 @@
   "scripts": {
     "build": "tsup --dts",
     "build:fast": "tsup",
-    "dev": "yarn build && nodemon --watch src -e ts --exec 'npm run build:fast'",
-    "prepublishOnly": "yarn build",
+    "dev": "pnpm build && nodemon --watch src -e ts --exec 'npm run build:fast'",
+    "prepublishOnly": "pnpm build",
     "semantic-release": "semantic-release"
   },
   "devDependencies": {
-    "@types/prosemirror-model": "^1.16.2",
-    "@types/prosemirror-state": "^1.3.0",
-    "@types/prosemirror-view": "^1.23.3",
+    "@types/clone": "^2.1.1",
     "@typescript-eslint/eslint-plugin": "^5.23.0",
     "@typescript-eslint/parser": "^5.23.0",
     "eslint": "^8.15.0",
     "nodemon": "^2.0.16",
+    "prosemirror-model": "^1.18.2",
+    "prosemirror-view": "^1.29.1",
+    "semantic-release": "^19.0.2",
     "svelte": "^3.48.0",
-    "tsup": "^5.12.7",
-    "typescript": "^4.6.4",
-    "semantic-release": "^19.0.2"
+    "tsup": "^5.12.9",
+    "typescript": "^4.6.4"
   },
   "dependencies": {
+    "clone": "^2.1.2",
     "prosemirror-state": "^1.3.4"
   },
   "release": {
-    "branches": [ "main" ]
+    "branches": [
+      "main"
+    ]
   },
   "repository": {
     "type": "git",
